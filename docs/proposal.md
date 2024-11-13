@@ -1,14 +1,17 @@
 # Final project proposal
 This file is the template for your final project proposal. Please update this file with your proposal details (delete these first two sentences, please :slightly_smiling_face:)
 
-## Hardware/software proposal 1
-Describe one of the hardware and software proposals. The hardware and software must work together. Include a brief description of the hardware/software interface (e.g., what sort of registers will you create/use, etc.)
+## Peter's HW/SW Proposal
+HW: Button (stop) and Potentiometer (speed) and Buzzer (success)
+SW: Logic for stopping game, playing buzzer, changing speed
 
-## Hardware/software proposal 2
-Describe the other hardware and software proposal. The hardware and software must work together. Include a brief description of the hardware/software interface (e.g., what sort of registers will you create/use, etc.)
+## David's HW/SW Proposal
+HW: WS2811 driver for LED strip
+SW: C to run the LEDs (speed of pattern is adjustable)
 
 ## Extra credit
-Define any extra credit proposals here.
+??
 
 ## Division of labor
-Briefly describe who will be working on what. For extra credit tasks and any software above the driver level, it is okay for both group members to work on a single piece, so long as the division of labor and responsibilities are clear.
+HW: David will write the VHDL for the WS2811 driver, and Peter will write the VHDL for the button and potentiometer
+SW: David will write the C for determining success/fail on button press, and peter will write the C to run patterns on the LED strip
