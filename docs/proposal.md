@@ -1,5 +1,6 @@
 ## Our Vision:
 This is a rip-on of a classic arcade game: a strip of LEDs makes a big circle around which a few LEDs rotate at a speed adjustable by the potentiometer. A user tries to press a button while the LEDs are lit in a specific place. If they succeed, the LEDs stop for a breif moment and a buzzer goes off before the game resets. 
+![Arcade game](./assets/arcade.jpg)
 
 ## David's HW/SW Proposal
 HW: Button (stop) and Potentiometer (speed) and Buzzer (success)
