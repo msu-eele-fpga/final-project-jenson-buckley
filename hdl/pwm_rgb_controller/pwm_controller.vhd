@@ -63,7 +63,7 @@ begin
             count <= 0;
             output <= '1';
         elsif(rising_edge(clk)) then
-            if(count < count_max_int) then
+            if(count < counter_max_int) then
               count <= count + 1;
               if(count < duty_cycle_max_int) then
                   output <= '1';
