@@ -60,16 +60,19 @@ begin
     OUTPUT_DRIVER : process(clk, rst)
     begin
         if(rst = '1') then
-            output <= '0';
+            count <= 0;
+            output <= '1';
         elsif(rising_edge(clk)) then
-            count <= count + 1;
-            if(count < duty_cycle_max_int) then
-                output <= '1';
-            elsif(count < counter_max_int-1) then
-                output <= '0';
+            if(count < count_max_int) then
+              count <= count + 1;
+              if(count < duty_cycle_max_int) then
+                  output <= '1';
+              else
+                  output <= '0';
+              end if;
             else
                 count <= 0;
-                output <= '0';
+                output <= '1';
             end if;
         end if;
     end process OUTPUT_DRIVER;
