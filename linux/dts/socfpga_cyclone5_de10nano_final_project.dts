@@ -1,0 +1,8 @@
+#include "socfpga_cyclone5_de10nano.dtsi"
+
+/{
+pwm_rgb: pwm_rgb@ff210000 {
+compatible = "jensen,pwm_rgb";
+reg = <0xff210000 16>;
+};
+};
