@@ -38,58 +38,6 @@ struct mutex lock;
 };
 
 /**
-* base_addr_show() - Return the base_addr value to user-space via sysfs.
-* @dev: Device structure for the pwm_rgb_controller component. This
-* device struct is embedded in the pwm_rgb_controller' platform
-* device struct.
-* @attr: Unused.
-* @buf: Buffer that gets returned to user-space.
-*
-* Return: The number of bytes read.
-*/
-static ssize_t base_addr_show(struct device *dev,
-struct device_attribute *attr, char *buf)
-{
-u32 led_reg;
-struct pwm_rgb_dev *priv = dev_get_drvdata(dev);
-
-led_reg = ioread32(priv->base_addr);
-
-return scnprintf(buf, PAGE_SIZE, "%u\n", base_addr);
-}
-
-/**
-* base_addr_store() - Store the base_addr value.
-* @dev: Device structure for the pwm_rgb_controller component. This
-* device struct is embedded in the pwm_rgb_controller' platform
-* device struct.
-* @attr: Unused.
-* @buf: Buffer that contains the base_addr value being written.
-* @size: The number of bytes being written.
-*
-* Return: The number of bytes stored.
-*/
-static ssize_t base_addr_store(struct device *dev,
-struct device_attribute *attr, const char *buf, size_t size)
-{
-u32 base_addr;
-int ret;
-struct pwm_rgb_dev *priv = dev_get_drvdata(dev);
-
-// Parse the string we received as a u8
-// See https://elixir.bootlin.com/linux/latest/source/lib/kstrtox.c#L289
-ret = kstrtouint(buf, 0, &base_addr);
-if (ret < 0) {
-return ret;
-}
-
-iowrite32(base_addr, priv->base_addr);
-
-// Write was successful, so we return the number of bytes we wrote.
-return size;
-}
-
-/**
 * duty_red_show() - Return the duty_red value
 * to user-space via sysfs.
 * @dev: Device structure for the pwm_rgb_controller component. This
@@ -130,7 +78,7 @@ struct pwm_rgb_dev *priv = dev_get_drvdata(dev);
 
 // Parse the string we received as an unsigned 32-bit int
 // See https://elixir.bootlin.com/linux/latest/source/lib/kstrtox.c#L289
-ret = kstrtouint(buf, &duty_red);
+ret = kstrtouint(buf, 0, &duty_red);
 if (ret < 0) {
 // kstrtobool returned an error
 return ret;
@@ -183,7 +131,7 @@ struct pwm_rgb_dev *priv = dev_get_drvdata(dev);
 
 // Parse the string we received as an unsigned 32-bit int
 // See https://elixir.bootlin.com/linux/latest/source/lib/kstrtox.c#L289
-ret = kstrtouint(buf, &duty_green);
+ret = kstrtouint(buf, 0, &duty_green);
 if (ret < 0) {
 // kstrtobool returned an error
 return ret;
@@ -236,13 +184,66 @@ struct pwm_rgb_dev *priv = dev_get_drvdata(dev);
 
 // Parse the string we received as an unsigned 32-bit int
 // See https://elixir.bootlin.com/linux/latest/source/lib/kstrtox.c#L289
-ret = kstrtouint(buf, &duty_blue);
+ret = kstrtouint(buf, 0, &duty_blue);
 if (ret < 0) {
 // kstrtobool returned an error
 return ret;
 }
 
 iowrite32(duty_blue, priv->duty_blue);
+
+// Write was successful, so we return the number of bytes we wrote.
+return size;
+}
+
+/**
+* base_period_show() - Return the base_period value
+* to user-space via sysfs.
+* @dev: Device structure for the pwm_rgb_controller component. This
+* device struct is embedded in the pwm_rgb_controller' device struct.
+* @attr: Unused.
+* @buf: Buffer that gets returned to user-space.
+*
+* Return: The number of bytes read.
+*/
+static ssize_t base_period_show(struct device *dev,
+struct device_attribute *attr, char *buf)
+{
+u32 base_period;
+struct pwm_rgb_dev *priv = dev_get_drvdata(dev);
+
+base_period = ioread32(priv->base_period);
+
+return scnprintf(buf, PAGE_SIZE, "%u\n", base_period);
+}
+
+/**
+* base_period_store() - Store the base_period value.
+* @dev: Device structure for the pwm_rgb_controller component. This
+* device struct is embedded in the pwm_rgb_controller'
+* platform device struct.
+* @attr: Unused.
+* @buf: Buffer that contains the base_period value being written.
+* @size: The number of bytes being written.
+*
+* Return: The number of bytes stored.
+*/
+static ssize_t base_period_store(struct device *dev,
+struct device_attribute *attr, const char *buf, size_t size)
+{
+u32 base_period;
+int ret;
+struct pwm_rgb_dev *priv = dev_get_drvdata(dev);
+
+// Parse the string we received as an unsigned 32-bit int
+// See https://elixir.bootlin.com/linux/latest/source/lib/kstrtox.c#L289
+ret = kstrtouint(buf, 0, &base_period);
+if (ret < 0) {
+// kstrtobool returned an error
+return ret;
+}
+
+iowrite32(base_period, priv->base_period);
 
 // Write was successful, so we return the number of bytes we wrote.
 return size;
