@@ -251,7 +251,8 @@ architecture de10nano_arch of de10nano_top is
       adc_sclk                        : out   std_logic;
       adc_cs_n                        : out   std_logic;
       adc_dout                        : in    std_logic;
-      adc_din                         : out   std_logic
+      adc_din                         : out   std_logic;
+		stop_button_stop_button         : in    std_logic:= 'X'
     );
   end component soc_system;
 
@@ -351,7 +352,10 @@ begin
 
       -- Fabric clock and reset
       clk_clk       => fpga_clk1_50,
-      reset_reset_n => rst_n
+      reset_reset_n => rst_n,
+		
+		-- User stop button
+      stop_button_stop_button => gpio_1(0)
     );
 
 end architecture de10nano_arch;
