@@ -334,6 +334,22 @@
          type = "String";
       }
    }
+   element stop_button_0
+   {
+      datum _sortIndex
+      {
+         value = "5";
+         type = "int";
+      }
+   }
+   element stop_button_0.avalon_slave_0
+   {
+      datum baseAddress
+      {
+         value = "131072";
+         type = "String";
+      }
+   }
 }
 ]]></parameter>
  <parameter name="clockCrossingAdapter" value="HANDSHAKE" />
@@ -365,6 +381,11 @@
  <interface name="hps_spim0_sclk_out" internal="hps.spim0_sclk_out" />
  <interface name="memory" internal="hps.memory" type="conduit" dir="end" />
  <interface name="reset" internal="fpga_clk.clk_in_reset" type="reset" dir="end" />
+ <interface
+   name="stop_button"
+   internal="stop_button_0.stop_button_io"
+   type="conduit"
+   dir="end" />
  <module name="adc" kind="altera_up_avalon_adc" version="18.0" enabled="1">
   <parameter name="AUTO_CLK_CLOCK_RATE" value="12500000" />
   <parameter name="AUTO_DEVICE_FAMILY" value="Cyclone V" />
@@ -1126,6 +1147,7 @@
   <parameter name="PLI_PORT" value="50000" />
   <parameter name="USE_PLI" value="0" />
  </module>
+ <module name="stop_button_0" kind="stop_button" version="1.0" enabled="1" />
  <connection
    kind="avalon"
    version="23.1"
@@ -1138,6 +1160,15 @@
  <connection
    kind="avalon"
    version="23.1"
+   start="hps.h2f_lw_axi_master"
+   end="stop_button_0.avalon_slave_0">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x00020000" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="23.1"
    start="jtag_master.master"
    end="adc.adc_slave">
   <parameter name="arbitrationPriority" value="1" />
@@ -1145,10 +1176,24 @@
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
+   kind="avalon"
+   version="23.1"
+   start="jtag_master.master"
+   end="stop_button_0.avalon_slave_0">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x00020000" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
    kind="clock"
    version="23.1"
    start="fpga_clk.clk"
    end="jtag_master.clk" />
+ <connection
+   kind="clock"
+   version="23.1"
+   start="fpga_clk.clk"
+   end="stop_button_0.clk" />
  <connection
    kind="clock"
    version="23.1"
@@ -1171,6 +1216,11 @@
    version="23.1"
    start="fpga_clk.clk_reset"
    end="adc_pll.reset" />
+ <connection
+   kind="reset"
+   version="23.1"
+   start="fpga_clk.clk_reset"
+   end="stop_button_0.rst" />
  <interconnectRequirement for="$system" name="qsys_mm.clockCrossingAdapter" value="HANDSHAKE" />
  <interconnectRequirement for="$system" name="qsys_mm.maxAdditionalLatency" value="1" />
 </system>
