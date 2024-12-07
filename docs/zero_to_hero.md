@@ -3,9 +3,210 @@
 The idea here is a one-stop shop for example files, compilation commands, and more to go from a VHDL file to a Linux device driver.
 
 ## VHDL (on your PC)
-Write a VHDL file to implement the necessary functionality. Then, write a VHDL file that instantiates the VHDL component and sets it up for use over the avalon bridge.
+Write a VHDL file to implement the necessary functionality. Then, write a VHDL file that instantiates the VHDL component and sets it up for use over the avalon bridge. An example pair of files for a component and Avalon file is as follows:
 
-TODO: add file examples
+**Component:**
+```
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use ieee.math_real.all;
+library IEEE;
+library std;
+use std.standard;
+
+entity pwm_controller is
+  generic (
+    CLK_PERIOD : time := 20 ns
+  );
+  port (
+    clk : in std_logic;
+    rst : in std_logic; -- active high
+    -- PWM repetition period in milliseconds;
+    -- datatype (W.F) (32.24)
+    period : in unsigned(31 downto 0);
+    -- PWM duty cycle between [0 1]; out-of-range values are hard-limited
+    -- datatype (W.F) (32.31)
+    duty_cycle : in std_logic_vector(31 downto 0);
+    output     : out std_logic
+  );
+end entity pwm_controller;
+
+architecture arch of pwm_controller is
+
+  -- assigned data types
+  constant PERIOD_INT_BITS : natural := 8;
+  constant PERIOD_FRAC_BITS : natural := 24;
+  constant DUTY_INT_BITS : natural := 1;
+  constant DUTY_FRAC_BITS : natural := 31;
+
+  -- clock frequency as natural (keep in ms as period is provided in ms)
+  constant FREQ_INTEGER : natural := integer(real(1 ms / CLK_PERIOD));
+  -- bits needed for frequency
+  constant FREQ_BITS : natural := natural(ceil(log2(real(FREQ_INTEGER))));
+  -- clock frequency as unsigned 
+  constant FREQ : unsigned((FREQ_BITS - 1) downto 0) := to_unsigned(FREQ_INTEGER, FREQ_BITS);
+
+  -- counter max
+  signal counter_max_fullprec : unsigned((FREQ_BITS + PERIOD_INT_BITS + PERIOD_FRAC_BITS - 1) downto 0);
+  signal counter_max_int : natural;
+  -- duty cycle max
+  signal duty_cycle_max_fullprec : unsigned((FREQ_BITS + DUTY_INT_BITS + DUTY_FRAC_BITS - 1) downto 0);
+  signal duty_cycle_max_int : natural;
+  -- count
+  signal count  : integer := 0;
+
+begin
+    -- calculate counter max, accounting for the fact period is provided in milliseconds
+    counter_max_fullprec <= freq * period;
+    counter_max_int <= to_integer(counter_max_fullprec((FREQ_BITS + PERIOD_INT_BITS + PERIOD_FRAC_BITS - 1) downto PERIOD_FRAC_BITS));
+    
+    -- calculate duty cycle max
+    duty_cycle_max_fullprec <= freq * unsigned(duty_cycle);
+    duty_cycle_max_int <= to_integer(duty_cycle_max_fullprec((FREQ_BITS + DUTY_INT_BITS + DUTY_FRAC_BITS - 1) downto DUTY_FRAC_BITS));
+    
+
+    OUTPUT_DRIVER : process(clk, rst)
+    begin
+        if(rst = '1') then
+            count <= 0;
+            output <= '1';
+        elsif(rising_edge(clk)) then
+            if(count < counter_max_int) then
+              count <= count + 1;
+              if(count < duty_cycle_max_int) then
+                  output <= '1';
+              else
+                  output <= '0';
+              end if;
+            else
+                count <= 0;
+                output <= '1';
+            end if;
+        end if;
+    end process OUTPUT_DRIVER;
+end architecture arch;
+```
+
+**Avalon File:**
+```
+-- altera vhdl_input_version vhdl_2008
+
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+library std;
+use std.standard;
+
+entity pwm_rgb_controller_avalon is
+  port (
+    clk : in std_ulogic;
+    rst : in std_ulogic;
+    -- avalon memory-mapped slave interface
+    avs_read      : in std_logic;
+    avs_write     : in std_logic;
+    avs_address   : in std_logic_vector(1 downto 0);
+    avs_readdata  : out std_logic_vector(31 downto 0);
+    avs_writedata : in std_logic_vector(31 downto 0);
+    -- external I/O; export to top-level
+    red_out        : out std_logic;
+    green_out : out std_logic;
+    blue_out : out std_logic
+  );
+end entity pwm_rgb_controller_avalon;
+
+architecture arch of pwm_rgb_controller_avalon is
+
+  -- duty cycles are provided in the following format: (W.F) (32.31)
+  -- set duty cycles to 50% initially
+  signal reg_red_duty_cycle       : std_logic_vector(31 downto 0) := (30 => '1', others => '0');
+  signal reg_green_duty_cycle     : std_logic_vector(31 downto 0) := (30 => '1', others => '0');
+  signal reg_blue_duty_cycle      : std_logic_vector(31 downto 0) := (30 => '1', others => '0');
+
+  -- period in milliseconds is provided in the following format: (W.F) (32.24)
+  -- set period initially to 1 ms
+  signal reg_period : std_logic_vector(31 downto 0) := (24 => '1', others => '0');
+
+  component pwm_controller is
+	  port (
+		 clk : in std_logic;
+		 rst : in std_logic; -- active high
+		 -- PWM repetition period in milliseconds;
+		 -- datatype (W.F) (32.24)
+		 period : in unsigned(31 downto 0);
+		 -- PWM duty cycle between [0 1]; out-of-range values are hard-limited
+		 -- datatype (W.F) (32.31)
+		 duty_cycle : in std_logic_vector(31 downto 0);
+		 output     : out std_logic
+	  );
+  end component pwm_controller;
+
+begin
+
+  RED_PWM_CTL : component pwm_controller
+    port map
+	 (
+		clk => clk,
+		rst => rst,
+		period => unsigned(reg_period),
+		duty_cycle => reg_red_duty_cycle,
+		output => red_out
+	  );
+
+    GREEN_PWM_CTL : component pwm_controller
+      port map
+     (
+      clk => clk,
+      rst => rst,
+      period => unsigned(reg_period),
+      duty_cycle => reg_green_duty_cycle,
+      output => green_out
+      );
+
+      BLUE_PWM_CTL : component pwm_controller
+        port map
+       (
+        clk => clk,
+        rst => rst,
+        period => unsigned(reg_period),
+        duty_cycle => reg_blue_duty_cycle,
+        output => blue_out
+        );
+
+  avalon_register_read : process (clk)
+  begin
+    if rising_edge(clk) and avs_read = '1' then
+      case avs_address is
+        when "00" => avs_readdata   <= reg_red_duty_cycle;
+        when "01" => avs_readdata   <= reg_green_duty_cycle;
+        when "10" => avs_readdata   <= reg_blue_duty_cycle;
+        when "11" => avs_readdata <= reg_period;
+        when others => avs_readdata <= (others => '0');
+      end case;
+    end if;
+  end process;
+
+  avalon_register_write : process (clk, rst)
+  begin
+    if rst = '1' then
+      reg_red_duty_cycle <= (others => '0');
+      reg_green_duty_cycle <= (others => '0');
+      reg_blue_duty_cycle <= (others => '0');
+      reg_period <= (21 => '1', others => '0');
+    elsif rising_edge(clk) and avs_write = '1' then
+      case avs_address is
+        when "00"   => reg_red_duty_cycle <= avs_writedata(31 downto 0);
+        when "01"   => reg_green_duty_cycle         <= avs_writedata(31 downto 0);
+        when "10"   => reg_blue_duty_cycle     <= avs_writedata(31 downto 0);
+        when "11" => reg_period <= avs_writedata(31 downto 0);
+        when others => null; -- ignore writes to unused registers
+      end case;
+    end if;
+  end process;
+
+end architecture arch;
+```
 
 ## Platform Designer (on your PC)
 1. Open up platform designer and create new component
