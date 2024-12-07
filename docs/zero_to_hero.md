@@ -6,7 +6,7 @@ The idea here is a one-stop shop for example files, compilation commands, and mo
 Write a VHDL file to implement the necessary functionality. Then, write a VHDL file that instantiates the VHDL component and sets it up for use over the avalon bridge. An example pair of files for a component and Avalon file is as follows:
 
 **Component:**
-```
+```VHDL
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -89,7 +89,7 @@ end architecture arch;
 ```
 
 **Avalon File:**
-```
+```VHDL
 -- altera vhdl_input_version vhdl_2008
 
 library IEEE;
@@ -239,14 +239,14 @@ end architecture arch;
 1. Create a directory for your __*project*__ if it is not already created in /srv/tftp/de10nano/ and switch to that directory
 2. Copy the rbf file (FPGA bitstream) for your component to that directory
 3. In the github repo, navigate to /linux/dts and add the following to the project (not component) `.dts` file:
-```
+```dts
 <component_name>: <component_name>@<hardware_base_address> {
 compatible = "<last_name>,<component_name>";
 reg = <<hardware_base_address> 16>;
 };
 ```
 Repalce indicated spots with correct values. The hardware base address should be `0xff200000` plus whatever you set the base address as for the component in Platform Designer. The `.dts` file could look something like this:
-```
+```dts
 #include "socfpga_cyclone5_de10nano.dtsi"
 
 /{
@@ -316,7 +316,7 @@ mkimage -A arm -O linux -T script -C none -a 0 -e 0 -n "<project_name> bootscrip
 2. In this file, paste the following code in order:
 
 **Imports:**
-```
+```c
 #include <linux/module.h>           // basic kernel module definitions
 #include <linux/platform_device.h>  // platform driver/device definitions
 #include <linux/mod_devicetable.h>  // of_device_id, MODULE_DEVICE_TABLE
@@ -330,7 +330,7 @@ mkimage -A arm -O linux -T script -C none -a 0 -e 0 -n "<project_name> bootscrip
 
 **Register Offsets:**
 For each register in your Avalon file, define the offsets (0x4 is 32 bits).
-```
+```c
 #define <register_name>_OFFSET 0x0
 
 #define SPAN 16
@@ -338,7 +338,7 @@ For each register in your Avalon file, define the offsets (0x4 is 32 bits).
 
 **Dev struct:**
 This struct is what is used to hold instance-specific info about the device. It includes a `void __iomem *<reg_name>;` for every Avalon register.
-```
+```c
 /**
 * struct <component_name>_dev - Private <component> device struct.
 * @base_addr: Pointer to the component's base address
@@ -358,7 +358,7 @@ struct mutex lock;
 
 **Show and Store functions:**
 These are the functions used to r/w to the registers via sysfs. You will have a set for every register in the Avalon file.
-```
+```c
 /**
 * <reg_name>_show() - Return the <reg_name> value
 * to user-space via sysfs.
@@ -415,14 +415,14 @@ return size;
 
 **Define sysfs attributes:**
 You will need one of these for each register.
-```
+```c
 // Define sysfs attributes
 static DEVICE_ATTR_RW(<reg_name>);
 ```
 
 **Attribute Group:**
 You need one of these for the component. Make sure to add `&dev_attr_<reg_name>.attr,` lines as necessary for each register.
-```
+```c
 // Create an attribute group so the device core can
 // export the attributes for us.
 static struct attribute *<component_name>_attrs[] = {
@@ -434,7 +434,7 @@ ATTRIBUTE_GROUPS(<component_name>);
 
 **Character device methods:**
 You just need one of these for the component as a whole.
-```
+```c
 /**
 * <component_name>_read() - Read method for the <component_name> char device
 * @file: Pointer to the char device file struct.
@@ -548,7 +548,7 @@ return ret;
 
 **File Operations:**
 Defines operations supported by the device driver.
-```
+```c
 /**
 * <component_name>_fops - File operations supported by the
 * <component_name> driver
@@ -570,7 +570,7 @@ static const struct file_operations <component_name>_fops = {
 
 **Probe and Remove:**
 These are called when the device driver is loaded into the kernel. Make sure to add in registers with their offsets where indicated!
-```
+```c
 static int <component_name>_probe(struct platform_device *pdev)
 {
 
@@ -653,7 +653,7 @@ return 0;
 
 **Last few bits:**
 Last couple of lines...
-```
+```c
 /*
 * Define the compatible property used for matching devices to this driver,
 * then add our device id structure to the kernel's device table. For a device
@@ -701,7 +701,7 @@ MODULE_DESCRIPTION("<component_name> driver");
 5. Boot the FPGA - you should be able to load and remove the module from the home directory using `insmod <component_name>.ko` and `rmmod <component.ko>`. Check if it was loaded successfully by running `dmesg | tail` and checking to see if the print statement from the probe function shows up.
 6. To check if the character device driver works, load the module, navigate to `/sys/devices/platform/` and then `cd` into the directory corrisponding to the component you created. You should be able to read and write to the registers using `cat <register_name>` and `echo <value> > <register_name>`
 7. To control them via software, see this example file. Cross-compile it with `/usr/bin/arm-linux -gnueabihf -gcc -o <file_name> <file_name>.c`, and copy the executable to `/srv/nfs/de10nano/ubuntu-rootfs/home/soc/`.
-```
+```c
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
