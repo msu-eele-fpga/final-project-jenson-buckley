@@ -7,85 +7,346 @@ Write a VHDL file to implement the necessary functionality. Then, write a VHDL f
 
 **Component:**
 ```VHDL
-library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-use ieee.math_real.all;
 library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
 library std;
 use std.standard;
 
-entity pwm_controller is
+entity led_patterns is
   generic (
-    CLK_PERIOD : time := 20 ns
+    system_clock_period : time := 20 ns
   );
   port (
-    clk : in std_logic;
-    rst : in std_logic; -- active high
-    -- PWM repetition period in milliseconds;
-    -- datatype (W.F) (32.24)
-    period : in unsigned(31 downto 0);
-    -- PWM duty cycle between [0 1]; out-of-range values are hard-limited
-    -- datatype (W.F) (32.31)
-    duty_cycle : in std_logic_vector(31 downto 0);
-    output     : out std_logic
+    clk             : in std_ulogic;
+    rst             : in std_ulogic;
+    push_button     : in std_ulogic;
+    switches        : in std_ulogic_vector(3 downto 0);
+    hps_led_control : in boolean;
+    base_period     : in unsigned(7 downto 0);
+    led_reg         : in std_ulogic_vector(7 downto 0);
+    led             : out std_ulogic_vector(7 downto 0)
   );
-end entity pwm_controller;
+end entity led_patterns;
 
-architecture arch of pwm_controller is
+architecture arch of LED_patterns is
 
-  -- assigned data types
-  constant PERIOD_INT_BITS : natural := 8;
-  constant PERIOD_FRAC_BITS : natural := 24;
-  constant DUTY_INT_BITS : natural := 1;
-  constant DUTY_FRAC_BITS : natural := 31;
+  constant DISPLAY_COUNT_LIMIT : natural := ((1 sec/system_clock_period));
 
-  -- clock frequency as natural (keep in ms as period is provided in ms)
-  constant FREQ_INTEGER : natural := integer(real(1 ms / CLK_PERIOD));
-  -- bits needed for frequency
-  constant FREQ_BITS : natural := natural(ceil(log2(real(FREQ_INTEGER))));
-  -- clock frequency as unsigned 
-  constant FREQ : unsigned((FREQ_BITS - 1) downto 0) := to_unsigned(FREQ_INTEGER, FREQ_BITS);
+  -- intermediate signals to hold clocks on
+  signal clk_base  : std_ulogic := '0';
+  signal clk_pat_0 : std_ulogic := '0';
+  signal clk_pat_1 : std_ulogic := '0';
+  signal clk_pat_2 : std_ulogic := '0';
+  signal clk_pat_3 : std_ulogic := '0';
+  signal clk_pat_4 : std_ulogic := '0';
 
-  -- counter max
-  signal counter_max_fullprec : unsigned((FREQ_BITS + PERIOD_INT_BITS + PERIOD_FRAC_BITS - 1) downto 0);
-  signal counter_max_int : natural;
-  -- duty cycle max
-  signal duty_cycle_max_fullprec : unsigned((FREQ_BITS + DUTY_INT_BITS + DUTY_FRAC_BITS - 1) downto 0);
-  signal duty_cycle_max_int : natural;
-  -- count
-  signal count  : integer := 0;
+  -- intermediate signals to store individual patterns on
+  signal led_pat_0 : std_ulogic_vector(6 downto 0) := "0000000";
+  signal led_pat_1 : std_ulogic_vector(6 downto 0) := "0000000";
+  signal led_pat_2 : std_ulogic_vector(6 downto 0) := "0000000";
+  signal led_pat_3 : std_ulogic_vector(6 downto 0) := "0000000";
+  signal led_pat_4 : std_ulogic_vector(6 downto 0) := "0000000";
+
+  -- intermediate signal to hold active pattern on
+  signal led_active : std_ulogic_vector(7 downto 0) := "00000000";
+
+  -- signal for conditioned push button
+  signal pb_conditioned : std_ulogic := '0';
+
+  -- signals for showing switch status for a second
+  signal display_bool       : std_ulogic := '0';
+  signal display_count_bool : std_ulogic := '0';
+  signal display_count      : natural range 0 to (DISPLAY_COUNT_LIMIT - 1);
+
+  -- custom var and signal for states
+  type pattern_state is (idle, activate_timer, display, zero, one, two, three, four);
+  signal state      : pattern_state := idle;
+  signal prev_state : pattern_state := display;
+
+  -- declare clock gen
+  component clock_gen is
+    port (
+      sys_clk   : in std_ulogic;
+      rst       : in std_ulogic;
+      base_rate : in unsigned(7 downto 0);
+      div_1     : out std_ulogic;
+      div_2     : out std_ulogic;
+      div_4     : out std_ulogic;
+      div_8     : out std_ulogic;
+      mult_2    : out std_ulogic;
+      mult_4    : out std_ulogic
+    );
+  end component;
+
+  -- declare async conditioner
+  component async_conditioner is
+    port (
+      clk   : in std_ulogic;
+      rst   : in std_ulogic;
+      async : in std_ulogic;
+      sync  : out std_ulogic
+    );
+  end component;
+
+  -- declare pattern generator components
+  component pat_gen_0 is
+    port (
+      clk : in std_logic;
+      rst : in std_logic;
+      LED : out std_ulogic_vector(6 downto 0)
+    );
+  end component;
+
+  component pat_gen_1 is
+    port (
+      clk : in std_logic;
+      rst : in std_logic;
+      LED : out std_ulogic_vector(6 downto 0)
+    );
+  end component;
+
+  component pat_gen_2 is
+    port (
+      clk : in std_logic;
+      rst : in std_logic;
+      LED : out std_ulogic_vector(6 downto 0)
+    );
+  end component;
+
+  component pat_gen_3 is
+    port (
+      clk : in std_logic;
+      rst : in std_logic;
+      LED : out std_ulogic_vector(6 downto 0)
+    );
+  end component;
+
+  component pat_gen_4 is
+    port (
+      clk_div4 : in std_logic;
+      clk_mult4 : in std_logic;
+      rst : in std_logic;
+      LED : out std_ulogic_vector(6 downto 0)
+    );
+  end component;
 
 begin
-    -- calculate counter max, accounting for the fact period is provided in milliseconds
-    counter_max_fullprec <= freq * period;
-    counter_max_int <= to_integer(counter_max_fullprec((FREQ_BITS + PERIOD_INT_BITS + PERIOD_FRAC_BITS - 1) downto PERIOD_FRAC_BITS));
-    
-    -- calculate duty cycle max
-    duty_cycle_max_fullprec <= freq * unsigned(duty_cycle);
-    duty_cycle_max_int <= to_integer(duty_cycle_max_fullprec((FREQ_BITS + DUTY_INT_BITS + DUTY_FRAC_BITS - 1) downto DUTY_FRAC_BITS));
-    
 
-    OUTPUT_DRIVER : process(clk, rst)
-    begin
-        if(rst = '1') then
-            count <= 0;
-            output <= '1';
-        elsif(rising_edge(clk)) then
-            if(count < counter_max_int) then
-              count <= count + 1;
-              if(count < duty_cycle_max_int) then
-                  output <= '1';
-              else
-                  output <= '0';
-              end if;
-            else
-                count <= 0;
-                output <= '1';
-            end if;
-        end if;
-    end process OUTPUT_DRIVER;
-end architecture arch;
+  clk_gen_comp : clock_gen
+  port map
+  (
+    sys_clk   => clk,
+    rst       => rst,
+    base_rate => base_period,
+    div_1     => clk_base,
+    div_2     => clk_pat_0,
+    div_4     => clk_pat_1,
+    div_8     => clk_pat_3,
+    mult_2    => clk_pat_2,
+    mult_4    => clk_pat_4
+  );
+
+  conditioner : async_conditioner
+  port map
+  (
+    clk   => clk,
+    rst   => rst,
+    async => push_button,
+    sync  => pb_conditioned
+  );
+
+  pat0 : pat_gen_0
+  port map
+  (
+    clk => clk_pat_0,
+    rst => rst,
+    LED => led_pat_0
+  );
+
+  pat1 : pat_gen_1
+  port map
+  (
+    clk => clk_pat_1,
+    rst => rst,
+    LED => led_pat_1
+  );
+
+  pat2 : pat_gen_2
+  port map
+  (
+    clk => clk_pat_2,
+    rst => rst,
+    LED => led_pat_2
+  );
+
+  pat3 : pat_gen_3
+  port map
+  (
+    clk => clk_pat_3,
+    rst => rst,
+    LED => led_pat_3
+  );
+
+  pat4 : pat_gen_4
+  port map
+  (
+    clk_div4 => clk_pat_1,
+    clk_mult4 => clk_pat_4,
+    rst => rst,
+    LED => led_pat_4
+  );
+
+  LED_7_FLIPPER : process (rst, clk_base)
+  begin
+    if (rst = '1') then
+      led_active(7) <= '0';
+      elsif (rising_edge(clk_base)) then
+      led_active(7) <= not led_active(7);
+    end if;
+  end process LED_7_FLIPPER;
+
+  STATE_LOGIC : process (rst, clk)
+  begin
+    if (rst = '1') then
+      state              <= idle;
+      prev_state         <= idle;
+      display_count_bool <= '0';
+      elsif (rising_edge(clk)) then
+      case state is
+        when idle =>
+          if(pb_conditioned = '1') then
+            state <= activate_timer;
+            display_count_bool <= '1';
+          else
+            state <= idle;
+            display_count_bool <= '0';
+          end if;
+        
+        when activate_timer =>
+          state <= display;
+          
+        when display =>
+          if(display_bool = '1') then
+            state <= display;
+          elsif(switches = "0000" ) then
+            state <= zero;
+          elsif(switches = "0001" ) then
+            state <= one;
+          elsif(switches = "0010" ) then
+            state <= two;
+          elsif(switches = "0011" ) then
+            state <= three;
+          elsif(switches = "0100" ) then
+            state <= four;
+          else
+            state <= prev_state;  
+          end if;
+
+        when zero =>
+          display_count_bool <= '0';
+          prev_state         <= state;
+          if(pb_conditioned = '1') then
+            state <= activate_timer;
+            display_count_bool <= '1';
+          else 
+            state <= zero;
+          end if;
+
+        when one =>
+          display_count_bool <= '0';
+          prev_state         <= state;
+          if(pb_conditioned = '1') then
+            state <= activate_timer;
+            display_count_bool <= '1';
+          else 
+            state <= one;
+          end if;
+
+        when two =>
+          display_count_bool <= '0';
+          prev_state         <= state;
+          if(pb_conditioned = '1') then
+            state <= activate_timer;
+            display_count_bool <= '1';
+          else 
+            state <= two;
+          end if;
+
+        when three =>
+          display_count_bool <= '0';
+          prev_state         <= state;
+          if(pb_conditioned = '1') then
+            state <= activate_timer;
+            display_count_bool <= '1';
+          else 
+            state <= three;
+          end if;
+
+        when four =>
+          display_count_bool <= '0';
+          prev_state         <= state;
+          if(pb_conditioned = '1') then
+            state <= activate_timer;
+            display_count_bool <= '1';
+          else 
+            state <= four;
+          end if;
+
+        when others =>
+          display_count_bool <= '0';
+          state              <= idle;
+      end case;
+    end if;
+  end process STATE_LOGIC;
+
+  OUTPUT_LOGIC : process(rst, clk)
+  begin
+    if (rst = '1') then
+      led_active(6 downto 0) <= "0000000";
+      elsif (rising_edge(clk)) then
+      case state is
+        when idle =>
+          led_active(6 downto 0) <= "0000000";
+        when display =>
+          led_active(6 downto 4) <= "000";
+          led_active(3 downto 0) <= switches;
+        when zero =>
+          led_active(6 downto 0) <= led_pat_0;
+        when one =>
+          led_active(6 downto 0) <= led_pat_1;
+        when two =>
+          led_active(6 downto 0) <= led_pat_2;
+        when three =>
+          led_active(6 downto 0) <= led_pat_3;
+        when four =>
+          led_active(6 downto 0) <= led_pat_4;
+        when others =>
+          led_active(6 downto 0) <= "0000000";
+      end case;
+    end if;
+  end process OUTPUT_LOGIC;
+
+  led <= led_reg when hps_led_control else led_active;
+
+  DISPLAY_TIMER : process (clk, rst)
+  begin
+    if (rst = '1') then
+      display_count <= 0;
+      display_bool  <= '0';
+    elsif (rising_edge(clk)) then
+      if (display_count_bool = '1' and (display_count < DISPLAY_COUNT_LIMIT)) then
+        display_count <= display_count + 1;
+        display_bool  <= '1';
+      else
+        display_count <= 0;
+        display_bool  <= '0';
+      end if;
+    end if;
+  end process DISPLAY_TIMER;
+
+end architecture;
 ```
 
 **Avalon File:**
@@ -99,7 +360,7 @@ use IEEE.numeric_std.all;
 library std;
 use std.standard;
 
-entity pwm_rgb_controller_avalon is
+entity led_patterns_avalon is
   port (
     clk : in std_ulogic;
     rst : in std_ulogic;
@@ -110,78 +371,57 @@ entity pwm_rgb_controller_avalon is
     avs_readdata  : out std_logic_vector(31 downto 0);
     avs_writedata : in std_logic_vector(31 downto 0);
     -- external I/O; export to top-level
-    red_out        : out std_logic;
-    green_out : out std_logic;
-    blue_out : out std_logic
+    push_button : in std_ulogic;
+    switches    : in std_ulogic_vector(3 downto 0);
+    led         : out std_ulogic_vector(7 downto 0)
   );
-end entity pwm_rgb_controller_avalon;
+end entity led_patterns_avalon;
 
-architecture arch of pwm_rgb_controller_avalon is
+architecture arch of led_patterns_avalon is
 
-  -- duty cycles are provided in the following format: (W.F) (32.31)
-  -- set duty cycles to 50% initially
-  signal reg_red_duty_cycle       : std_logic_vector(31 downto 0) := (30 => '1', others => '0');
-  signal reg_green_duty_cycle     : std_logic_vector(31 downto 0) := (30 => '1', others => '0');
-  signal reg_blue_duty_cycle      : std_logic_vector(31 downto 0) := (30 => '1', others => '0');
+  signal reg_hps_led_control  : std_logic_vector(31 downto 0) := (others => '0');
+  signal reg_led_reg          : std_logic_vector(31 downto 0) := (others => '0');
+  signal reg_base_period      : std_logic_vector(31 downto 0) := (1 => '1', others => '0');
+  signal bool_hps_led_control : boolean                        := false;
 
-  -- period in milliseconds is provided in the following format: (W.F) (32.24)
-  -- set period initially to 1 ms
-  signal reg_period : std_logic_vector(31 downto 0) := (24 => '1', others => '0');
-
-  component pwm_controller is
-	  port (
-		 clk : in std_logic;
-		 rst : in std_logic; -- active high
-		 -- PWM repetition period in milliseconds;
-		 -- datatype (W.F) (32.24)
-		 period : in unsigned(31 downto 0);
-		 -- PWM duty cycle between [0 1]; out-of-range values are hard-limited
-		 -- datatype (W.F) (32.31)
-		 duty_cycle : in std_logic_vector(31 downto 0);
-		 output     : out std_logic
-	  );
-  end component pwm_controller;
+  component led_patterns is
+    generic (
+      system_clock_period : time := 20 ns
+    );
+    port (
+      clk             : in std_ulogic;
+      rst             : in std_ulogic;
+      push_button     : in std_ulogic;
+      switches        : in std_ulogic_vector(3 downto 0);
+      hps_led_control : in boolean;
+      base_period     : in unsigned(7 downto 0);
+      led_reg         : in std_ulogic_vector(7 downto 0);
+      led             : out std_ulogic_vector(7 downto 0)
+    );
+  end component led_patterns;
 
 begin
 
-  RED_PWM_CTL : component pwm_controller
-    port map
-	 (
-		clk => clk,
-		rst => rst,
-		period => unsigned(reg_period),
-		duty_cycle => reg_red_duty_cycle,
-		output => red_out
-	  );
-
-    GREEN_PWM_CTL : component pwm_controller
-      port map
-     (
-      clk => clk,
-      rst => rst,
-      period => unsigned(reg_period),
-      duty_cycle => reg_green_duty_cycle,
-      output => green_out
-      );
-
-      BLUE_PWM_CTL : component pwm_controller
-        port map
-       (
-        clk => clk,
-        rst => rst,
-        period => unsigned(reg_period),
-        duty_cycle => reg_blue_duty_cycle,
-        output => blue_out
-        );
+  LED_PAT : led_patterns
+  port map
+  (
+    clk             => clk,
+    rst             => rst,
+    push_button     => push_button,
+    switches        => switches,
+    hps_led_control => bool_hps_led_control,
+    base_period     => unsigned(reg_base_period(7 downto 0)),
+    led_reg         => std_ulogic_vector(reg_led_reg(7 downto 0)),
+    led             => led
+  );
 
   avalon_register_read : process (clk)
   begin
     if rising_edge(clk) and avs_read = '1' then
       case avs_address is
-        when "00" => avs_readdata   <= reg_red_duty_cycle;
-        when "01" => avs_readdata   <= reg_green_duty_cycle;
-        when "10" => avs_readdata   <= reg_blue_duty_cycle;
-        when "11" => avs_readdata <= reg_period;
+        when "00" => avs_readdata   <= reg_hps_led_control;
+        when "01" => avs_readdata   <= reg_led_reg;
+        when "10" => avs_readdata   <= reg_base_period;
         when others => avs_readdata <= (others => '0');
       end case;
     end if;
@@ -190,20 +430,21 @@ begin
   avalon_register_write : process (clk, rst)
   begin
     if rst = '1' then
-      reg_red_duty_cycle <= (others => '0');
-      reg_green_duty_cycle <= (others => '0');
-      reg_blue_duty_cycle <= (others => '0');
-      reg_period <= (21 => '1', others => '0');
+      reg_hps_led_control <= (others => '0');
+      reg_led_reg         <= (others => '0');
+      reg_base_period     <= (1 => '1', others => '0');
     elsif rising_edge(clk) and avs_write = '1' then
       case avs_address is
-        when "00"   => reg_red_duty_cycle <= avs_writedata(31 downto 0);
-        when "01"   => reg_green_duty_cycle         <= avs_writedata(31 downto 0);
-        when "10"   => reg_blue_duty_cycle     <= avs_writedata(31 downto 0);
-        when "11" => reg_period <= avs_writedata(31 downto 0);
+        when "00"   => reg_hps_led_control <= avs_writedata(31 downto 0);
+        when "01"   => reg_led_reg         <= avs_writedata(31 downto 0);
+        when "10"   => reg_base_period     <= avs_writedata(31 downto 0);
         when others => null; -- ignore writes to unused registers
       end case;
     end if;
   end process;
+
+  bool_hps_led_control <= false when reg_hps_led_control(0) = '0' else
+    true;
 
 end architecture arch;
 ```
