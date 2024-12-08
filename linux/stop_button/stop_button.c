@@ -10,7 +10,7 @@
 
 #define STOP_BUTTON_OFFSET 0x0
 
-#define SPAN 16
+#define SPAN 8
 
 /**
 * struct stop_button_dev - Private stop button device struct.
@@ -46,7 +46,7 @@ struct stop_button_dev *priv = dev_get_drvdata(dev);
 
 stop_button = ioread32(priv->stop_button);
 
-return scnprintf(buf, PAGE_SIZE, "%u\n", stop_button);
+return scnprintf(buf, PAGE_SIZE, "%x\n", stop_button);
 }
 
 /**
@@ -251,7 +251,7 @@ return PTR_ERR(priv->base_addr);
 // Set the memory addresses for each register.
 priv->stop_button = priv->base_addr + STOP_BUTTON_OFFSET;
 // force button to low
-iowrite32(0x0, priv->duty_red);
+iowrite32(0x0, priv->stop_button);
 
 // Initialize the misc device parameters
 priv->miscdev.minor = MISC_DYNAMIC_MINOR;
