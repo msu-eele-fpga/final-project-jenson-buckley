@@ -1,0 +1,8 @@
+#include "socfpga_cyclone5_de10nano.dtsi"
+
+/{
+stop_button: stop_button@ff220000 {
+compatible = "jensen,stop_button";
+reg = <0xff220000 8>;
+};
+};
