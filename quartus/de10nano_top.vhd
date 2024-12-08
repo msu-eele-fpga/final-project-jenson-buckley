@@ -254,7 +254,8 @@ architecture de10nano_arch of de10nano_top is
       adc_din                         : out   std_logic;
       rgb_pwm_red_out                 : out   std_logic;
       rgb_pwm_green_out               : out   std_logic;
-      rgb_pwm_blue_out                : out   std_logic 
+      rgb_pwm_blue_out                : out   std_logic;
+		strip_output_strip_output       : out   std_logic
     );
   end component soc_system;
 
@@ -359,7 +360,8 @@ begin
       -- RGB PWM LED controller on the first three outside pins of gpio_0
       rgb_pwm_red_out => gpio_0(0),
       rgb_pwm_green_out => gpio_0(2),
-      rgb_pwm_blue_out => gpio_0(4)
+      rgb_pwm_blue_out => gpio_0(4),
+		strip_output_strip_output => gpio_0(1)      
     );
 
 end architecture de10nano_arch;

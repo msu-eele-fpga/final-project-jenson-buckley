@@ -350,6 +350,22 @@
          type = "String";
       }
    }
+   element ws2811_driver_0
+   {
+      datum _sortIndex
+      {
+         value = "6";
+         type = "int";
+      }
+   }
+   element ws2811_driver_0.avalon_slave_0
+   {
+      datum baseAddress
+      {
+         value = "196608";
+         type = "String";
+      }
+   }
 }
 ]]></parameter>
  <parameter name="clockCrossingAdapter" value="HANDSHAKE" />
@@ -386,6 +402,12 @@
    internal="pwm_rgb_led_controller_0.rgb_pwm"
    type="conduit"
    dir="end" />
+ <interface
+   name="strip_output"
+   internal="ws2811_driver_0.strip_output"
+   type="conduit"
+   dir="end" />
+ <interface name="ws2811_driver" internal="ws2811_driver_0.ws2811_driver" />
  <module name="adc" kind="altera_up_avalon_adc" version="18.0" enabled="1">
   <parameter name="AUTO_CLK_CLOCK_RATE" value="12500000" />
   <parameter name="AUTO_DEVICE_FAMILY" value="Cyclone V" />
@@ -1152,6 +1174,7 @@
    kind="pwm_rgb_led_controller"
    version="1.0"
    enabled="1" />
+ <module name="ws2811_driver_0" kind="ws2811_driver" version="1.0" enabled="1" />
  <connection
    kind="avalon"
    version="23.1"
@@ -1159,6 +1182,15 @@
    end="adc.adc_slave">
   <parameter name="arbitrationPriority" value="1" />
   <parameter name="baseAddress" value="0x0000" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="23.1"
+   start="hps.h2f_lw_axi_master"
+   end="ws2811_driver_0.avalon_slave_0">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x00030000" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -1177,6 +1209,15 @@
    end="adc.adc_slave">
   <parameter name="arbitrationPriority" value="1" />
   <parameter name="baseAddress" value="0x0000" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="23.1"
+   start="jtag_master.master"
+   end="ws2811_driver_0.avalon_slave_0">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x00030000" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -1198,6 +1239,11 @@
    version="23.1"
    start="fpga_clk.clk"
    end="pwm_rgb_led_controller_0.clk" />
+ <connection
+   kind="clock"
+   version="23.1"
+   start="fpga_clk.clk"
+   end="ws2811_driver_0.clk" />
  <connection
    kind="clock"
    version="23.1"
@@ -1225,6 +1271,11 @@
    version="23.1"
    start="fpga_clk.clk_reset"
    end="pwm_rgb_led_controller_0.rst" />
+ <connection
+   kind="reset"
+   version="23.1"
+   start="fpga_clk.clk_reset"
+   end="ws2811_driver_0.rst" />
  <interconnectRequirement for="$system" name="qsys_mm.clockCrossingAdapter" value="HANDSHAKE" />
  <interconnectRequirement for="$system" name="qsys_mm.maxAdditionalLatency" value="1" />
 </system>

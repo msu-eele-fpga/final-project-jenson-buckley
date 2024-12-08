@@ -8,28 +8,28 @@ entity ws2811_driver is
         LED_COUNT    : integer  -- Number of LEDs in the chain
     );
     port (
-        clk         : in std_logic;  -- Input clock
-        rst         : in std_logic;  -- Synchronous rst
-        data_array  : in std_logic_vector((24 * LED_COUNT) - 1 downto 0); -- RGB values for all LEDs
-        output      : out std_logic  -- WS2811 output signal
+        clk           : in std_logic;  -- Input clock
+        rst           : in std_logic;  -- Synchronous rst
+        data_array    : in std_logic_vector((24 * LED_COUNT) - 1 downto 0); -- RGB values for all LEDs
+        strip_output  : out std_logic  -- WS2811 strip_output signal
     );
 end ws2811_driver;
 
 architecture behavioral of ws2811_driver is
 
     -- Timing constants for high-speed mode in clock cycles
-    constant T0H : integer := integer(260 ns / CLK_PERIOD);  -- High for "0"
-    constant T0L : integer := integer(1000 ns / CLK_PERIOD); -- Low for "0"
-    constant T1H : integer := integer(600 ns / CLK_PERIOD);  -- High for "1"
-    constant T1L : integer := integer(660 ns / CLK_PERIOD);  -- Low for "1"
+    constant T0H : integer := integer(500 ns / CLK_PERIOD);  -- High for "0"
+    constant T0L : integer := integer(2000 ns / CLK_PERIOD); -- Low for "0"
+    constant T1H : integer := integer(1200 ns / CLK_PERIOD);  -- High for "1"
+    constant T1L : integer := integer(1300 ns / CLK_PERIOD);  -- Low for "1"
     constant LED_BITS     : integer := (24 * LED_COUNT);       -- Total number of bits for all LEDs
-    constant rst_PERIOD : integer := integer(50 us / CLK_PERIOD); -- rst time
+    constant rst_PERIOD : integer := integer(100 us / CLK_PERIOD); -- rst time
 
     -- Internal signals
     signal bit_counter       : integer range 0 to LED_BITS - 1 := 0;
     signal phase_counter     : integer := 0;
     signal rst_counter     : integer := 0;
-    signal output_reg        : std_logic := '0';
+    signal strip_output_reg        : std_logic := '0';
     signal sending_high      : boolean := true;
     signal current_bit       : std_logic := '0'; -- Now a signal
 begin
@@ -41,13 +41,13 @@ begin
                 bit_counter <= 0;
                 phase_counter <= 0;
                 rst_counter <= 0;
-                output_reg <= '0';
+                strip_output_reg <= '0';
                 sending_high <= true;
             else
                 if rst_counter < rst_PERIOD then
                     -- Handle rst period
                     rst_counter <= rst_counter + 1;
-                    output_reg <= '0'; -- Keep output low during rst
+                    strip_output_reg <= '0'; -- Keep strip_output low during rst
                 elsif bit_counter < LED_BITS then
                     -- Sending bits
                     current_bit <= data_array(LED_BITS - 1 - bit_counter);
@@ -59,7 +59,7 @@ begin
                         else
                             sending_high <= false; -- Transition to low
                             phase_counter <= 0;
-                            output_reg <= '0';
+                            strip_output_reg <= '0';
                         end if;
                     else
                         -- Handle low phase of the bit
@@ -71,14 +71,14 @@ begin
                             bit_counter <= bit_counter + 1;
                             phase_counter <= 0;
                             sending_high <= true; -- Start next bit high
-                            output_reg <= '1';
+                            strip_output_reg <= '1';
                         end if;
                     end if;
                 else
                     -- All bits sent, start/rst rst period
                     if rst_counter < rst_PERIOD then
                         rst_counter <= rst_counter + 1;
-                        output_reg <= '0'; -- Keep low during rst
+                        strip_output_reg <= '0'; -- Keep low during rst
                     else
                         rst_counter <= 0; -- rst for the next frame
                         bit_counter <= 0; -- Restart sending bits
@@ -88,7 +88,7 @@ begin
         end if;
     end process;
 
-    -- Connect the output signal
-    output <= output_reg;
+    -- Connect the strip_output signal
+    strip_output <= strip_output_reg;
 
 end behavioral;

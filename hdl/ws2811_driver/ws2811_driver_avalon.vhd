@@ -7,7 +7,7 @@ use IEEE.numeric_std.all;
 library std;
 use std.standard;
 
-entity pwm_rgb_controller_avalon is
+entity ws_2811_driver_avalon is
   port (
     clk : in std_ulogic;
     rst : in std_ulogic;
@@ -18,96 +18,98 @@ entity pwm_rgb_controller_avalon is
     avs_readdata  : out std_logic_vector(31 downto 0);
     avs_writedata : in std_logic_vector(31 downto 0);
     -- external I/O; export to top-level
-    red_out        : out std_logic;
-    green_out : out std_logic;
-    blue_out : out std_logic
+    strip_output        : out std_logic
   );
-end entity pwm_rgb_controller_avalon;
+end entity ws_2811_driver_avalon;
 
-architecture arch of pwm_rgb_controller_avalon is
+architecture arch of ws_2811_driver_avalon is
 
-  -- duty cycles are provided in the following format: (W.F) (32.31)
-  -- set duty cycles to 50% initially
-  signal reg_red_duty_cycle       : std_logic_vector(31 downto 0) := (30 => '1', others => '0');
-  signal reg_green_duty_cycle     : std_logic_vector(31 downto 0) := (30 => '1', others => '0');
-  signal reg_blue_duty_cycle      : std_logic_vector(31 downto 0) := (30 => '1', others => '0');
+  -- Generic constants for WS2811 driver
+  constant CLK_PERIOD : time := 20 ns; -- Clock period for 50 MHz clock
+  constant LED_COUNT  : integer := 18; --Number of LEDs in the WS2811 chain
+    
+  -- Signals for the ws2811 driver
+  signal data_array  : std_logic_vector((24 * LED_COUNT) - 1 downto 0);
+  
+  -- Avalon bus signals
+  -- Color of the majority of leds
+  signal rgb_all        : std_logic_vector(31 downto 0) := (30 => '1', others => '0');
+  -- Color of the single led
+  signal rgb_single     : std_logic_vector(31 downto 0) := (30 => '1', others => '0');
+  -- Sets which led is the single led
+  signal strip_index    : std_logic_vector(31 downto 0) := (30 => '1', others => '0');
+  -- Convert strip_index to integer using only the least significant LED_COUNT bits
+  signal strip_index_int : integer range 0 to LED_COUNT - 1 := 0;
 
-  -- period in milliseconds is provided in the following format: (W.F) (32.24)
-  -- set period initially to 1 ms
-  signal reg_period : std_logic_vector(31 downto 0) := (24 => '1', others => '0');
-
-  component pwm_controller is
-	  port (
-		 clk : in std_logic;
-		 rst : in std_logic; -- active high
-		 -- PWM repetition period in milliseconds;
-		 -- datatype (W.F) (32.24)
-		 period : in unsigned(31 downto 0);
-		 -- PWM duty cycle between [0 1]; out-of-range values are hard-limited
-		 -- datatype (W.F) (32.31)
-		 duty_cycle : in std_logic_vector(31 downto 0);
-		 output     : out std_logic
-	  );
-  end component pwm_controller;
+  -- Define Components
+  component ws2811_driver is
+    generic (
+      CLK_PERIOD : time;
+      LED_COUNT  : integer
+    );
+    port (
+      clk          : in std_logic;
+      rst          : in std_logic;
+      data_array   : in std_logic_vector((24 * LED_COUNT) - 1 downto 0);
+      strip_output : out std_logic
+    );
+  end component;
 
 begin
+  
+  -- ws2811 driver instatiation
+  DRIVER1 : ws2811_driver
+  generic map(
+    CLK_PERIOD => CLK_PERIOD,
+    LED_COUNT  => LED_COUNT
+  )
+  port map
+  (
+    clk        => clk,
+    rst        => rst,
+    data_array => data_array,
+    strip_output     => strip_output
+  );
+  
+  process(strip_index, rgb_single, rgb_all)
+    variable i : integer;
+  begin
+    -- Default all LEDs to rgb_all
+    for i in 0 to LED_COUNT - 1 loop
+        data_array((i + 1) * 24 - 1 downto i * 24) <= rgb_all(23 downto 0);
+    end loop;
 
-  RED_PWM_CTL : component pwm_controller
-    port map
-	 (
-		clk => clk,
-		rst => rst,
-		period => unsigned(reg_period),
-		duty_cycle => reg_red_duty_cycle,
-		output => red_out
-	  );
+    -- Assign the single LED to rgb_single
+    data_array((to_integer(unsigned(strip_index(LED_COUNT - 1 downto 0))) + 1) * 24 - 1 downto 
+               to_integer(unsigned(strip_index(LED_COUNT - 1 downto 0))) * 24) <= rgb_single(23 downto 0);
+  end process;
 
-    GREEN_PWM_CTL : component pwm_controller
-      port map
-     (
-      clk => clk,
-      rst => rst,
-      period => unsigned(reg_period),
-      duty_cycle => reg_green_duty_cycle,
-      output => green_out
-      );
 
-      BLUE_PWM_CTL : component pwm_controller
-        port map
-       (
-        clk => clk,
-        rst => rst,
-        period => unsigned(reg_period),
-        duty_cycle => reg_blue_duty_cycle,
-        output => blue_out
-        );
-
+  -- Process to read the register from the avalon bus
   avalon_register_read : process (clk)
   begin
     if rising_edge(clk) and avs_read = '1' then
       case avs_address is
-        when "00" => avs_readdata   <= reg_red_duty_cycle;
-        when "01" => avs_readdata   <= reg_green_duty_cycle;
-        when "10" => avs_readdata   <= reg_blue_duty_cycle;
-        when "11" => avs_readdata <= reg_period;
+        when "00" => avs_readdata   <= rgb_single;
+        when "01" => avs_readdata   <= rgb_all;
+        when "10" => avs_readdata   <= strip_index;
         when others => avs_readdata <= (others => '0');
       end case;
     end if;
   end process;
-
+  
+  -- Process to write to registers on avalon bus
   avalon_register_write : process (clk, rst)
   begin
     if rst = '1' then
-      reg_red_duty_cycle <= (others => '0');
-      reg_green_duty_cycle <= (others => '0');
-      reg_blue_duty_cycle <= (others => '0');
-      reg_period <= (21 => '1', others => '0');
+      rgb_single  <= (others => '0');
+      rgb_all     <= (others => '0');
+      strip_index <= (others => '0');
     elsif rising_edge(clk) and avs_write = '1' then
       case avs_address is
-        when "00"   => reg_red_duty_cycle <= avs_writedata(31 downto 0);
-        when "01"   => reg_green_duty_cycle         <= avs_writedata(31 downto 0);
-        when "10"   => reg_blue_duty_cycle     <= avs_writedata(31 downto 0);
-        when "11" => reg_period <= avs_writedata(31 downto 0);
+        when "00"   => rgb_single  <= avs_writedata(31 downto 0);
+        when "01"   => rgb_all     <= avs_writedata(31 downto 0);
+        when "10"   => strip_index <= avs_writedata(31 downto 0);
         when others => null; -- ignore writes to unused registers
       end case;
     end if;
