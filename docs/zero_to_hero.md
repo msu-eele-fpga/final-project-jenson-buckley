@@ -483,7 +483,7 @@ end architecture arch;
 ```dts
 <component_name>: <component_name>@<hardware_base_address> {
 compatible = "<last_name>,<component_name>";
-reg = <<hardware_base_address> 16>;
+reg = <<hardware_base_address> <span>>;
 };
 ```
 Repalce indicated spots with correct values. The hardware base address should be `0xff200000` plus whatever you set the base address as for the component in Platform Designer. The `.dts` file could look something like this:
