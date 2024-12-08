@@ -89,6 +89,7 @@ int main () {
     
     // initialize game
     uint32_t strip = 0x0;
+    uint32_t delay = DELAY_MAX;
 
     // loop until ctl-c is entered
     signal(SIGINT, int_handler);
@@ -106,7 +107,7 @@ int main () {
         ret = fread(&val, 4, 1, file_stop_button);
         if(val==1)
         {
-            if((strip == WIN_INDEX)
+            if(strip == WIN_INDEX)
             {
                 usleep(5*1000*1000);
             }
@@ -129,7 +130,7 @@ int main () {
 
     // ON EXIT
     // set all leds to red
-    val = 0xFF0000
+    val = 0xFF0000;
     ret = fseek(file_ws2811, OFF_COLOR_OFFSET, SEEK_SET);
     ret = fwrite(&val, 4, 1, file_ws2811);
     fflush(file_ws2811);
@@ -138,7 +139,7 @@ int main () {
     fflush(file_ws2811);
 
     // close files
-    fclose(file_stop_buton);
+    fclose(file_stop_button);
     fclose(file_adc);
     fclose(file_ws2811);
 
