@@ -18,14 +18,14 @@ entity stop_button_avalon is
     avs_readdata  : out std_logic_vector(31 downto 0);
     avs_writedata : in std_logic_vector(31 downto 0);
     -- external I/O; export to top-level
-    stop_button        : in std_logic
+    stop_button        : in std_ulogic
   );
 end entity stop_button_avalon;
 
 architecture arch of stop_button_avalon is
 
   -- intermediate signal for the blip from the button to be used in a sensitivity list
-  signal blip : std_logic;
+  signal blip : std_ulogic;
 
   -- set the register that holds the stop condition to 0
   -- the LSB will hold the stop state (0 for run; 1 for stop)
@@ -49,7 +49,7 @@ begin
 		clk => clk,
 		rst => rst,
 		async => stop_button,
-        sync => blip
+    sync => blip
 	  );
 
   avalon_register_read : process (clk)
@@ -57,9 +57,7 @@ begin
     if rising_edge(clk) and avs_read = '1' then
       case avs_address is
         when '0' =>
-            if(stop(0)) then
-                avs_readdata   <= stop;
-            end if;
+          avs_readdata   <= stop;
         when others => avs_readdata <= (others => '0');
       end case;
     end if;
