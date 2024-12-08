@@ -93,15 +93,18 @@ int main () {
     while(keep_running)
     {
         // read ADC values and convert to pwm values
+        // NOTE: this is designed for 3.3V supply to the pots
+        // the highest value read by the ADC would be
+        // max_pot_v / max_adc_v * adc_bits - 1  = 3.3/4.096 * 2^12 - 1 = 3299
         ret = fseek(file_adc, ADC_CH_0_OFFSET, SEEK_SET);
         ret = fread(&val, 4, 1, file_adc);
-        red_pwm = (uint32_t) (PWM_MIN + (PWM_MAX - PWM_MIN)*((float) val) / 4095);
+        red_pwm = (uint32_t) (PWM_MIN + (PWM_MAX - PWM_MIN)*((float) val) / 3299.0);
         ret = fseek(file_adc, ADC_CH_1_OFFSET, SEEK_SET);
         ret = fread(&val, 4, 1, file_adc);
-        green_pwm = (uint32_t) (PWM_MIN + (PWM_MAX - PWM_MIN)*((float) val) / 4095);
+        green_pwm = (uint32_t) (PWM_MIN + (PWM_MAX - PWM_MIN)*((float) val) / 3299.0);
         ret = fseek(file_adc, ADC_CH_2_OFFSET, SEEK_SET);
         ret = fread(&val, 4, 1, file_adc);
-        blue_pwm = (uint32_t) (PWM_MIN + (PWM_MAX - PWM_MIN)*((float) val) / 4095);
+        blue_pwm = (uint32_t) (PWM_MIN + (PWM_MAX - PWM_MIN)*((float) val) / 3299.0);
 
         // write pwm values
         ret = fseek(file_pwm_rgb, DUTY_RED_OFFSET, SEEK_SET);
