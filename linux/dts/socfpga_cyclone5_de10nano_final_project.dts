@@ -1,0 +1,7 @@
+#include "socfpga_cyclone5_de10nano.dtsi"
+/{
+de10nano_adc: adc@ff200000 {
+    compatible = "adsd,de10nano_adc";
+    reg = <0xff200000 32>;
+};
+};
