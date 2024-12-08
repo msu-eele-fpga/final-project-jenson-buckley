@@ -95,10 +95,12 @@ int main () {
     signal(SIGINT, int_handler);
     while(keep_running)
     {
-        // read ADC value to set speed of game using delay between pattern writes in ms
-        ret = fseek(file_adc, ADC_CH_0_OFFSET, SEEK_SET);
+        // read ADC values and convert to pwm values
+        // NOTE: this is designed for 3.3V supply to the pots
+        // the highest value read by the ADC would be
+        // max_pot_v / max_adc_v * adc_bits - 1  = 3.3/4.096 * 2^12 - 1 = 3299        ret = fseek(file_adc, ADC_CH_0_OFFSET, SEEK_SET);
         ret = fread(&val, 4, 1, file_adc);
-        delay = (uint32_t) (DELAY_MIN + (DELAY_MAX - DELAY_MIN)*((float) val) / 4095);
+        delay = (uint32_t) (DELAY_MIN + (DELAY_MAX - DELAY_MIN)*((float) val) / 3299.0);
 
         // check to see if user pressed button and won
         // if they did, pause the game for 5 seconds, then reset the button
