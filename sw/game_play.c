@@ -54,12 +54,12 @@ int main () {
         printf("failed to open /dev/stop_button\n");
         exit(1);
     }
-    if (file_stop_button == NULL) {
-        printf("failed to open /dev/stop_button\n");
+    if (file_adc == NULL) {
+        printf("failed to open /dev/adc\n");
         exit(1);
     }
-    if (file_stop_button == NULL) {
-        printf("failed to open /dev/stop_button\n");
+    if (file_ws2811 == NULL) {
+        printf("failed to open /dev/ws2811\n");
         exit(1);
     }
 
@@ -122,7 +122,6 @@ int main () {
         strip = strip > NUM_LEDS ? 0 : strip + 1;
         ret = fseek(file_ws2811, STRIP_OFFSET, SEEK_SET);
         ret = fwrite(&strip, 4, 1, file_ws2811);
-        // We need to "flush" so the OS finishes writing to the file_stop_button before our code continues.
         fflush(file_ws2811);
 
         usleep(1000*delay);
