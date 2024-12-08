@@ -6,4 +6,14 @@ de10nano_adc: adc@ff200000 {
     reg = <0xff200000 32>;
 
 };
+
+pwm_rgb: pwm_rgb@ff210000 {
+compatible = "jensen,pwm_rgb";
+reg = <0xff210000 16>;
+};
+
+stop_button: stop_button@ff210000 {
+compatible = "jensen,stop_button";
+reg = <0xff220000 8>;
+};
 };
