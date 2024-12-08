@@ -937,11 +937,30 @@ MODULE_AUTHOR("<Full Name>");
 MODULE_DESCRIPTION("<component_name> driver");
 ```
 
-3. Run `make ARCH=arm` in the directory that `<component_name>.c` is in and fix any errors.
-4. Copy the `.ko` file that gets generated to `/srv/nfs/de10nano/ubuntu-rootfs/home/soc`.
-5. Boot the FPGA - you should be able to load and remove the module from the home directory using `insmod <component_name>.ko` and `rmmod <component.ko>`. Check if it was loaded successfully by running `dmesg | tail` and checking to see if the print statement from the probe function shows up.
-6. To check if the character device driver works, load the module, navigate to `/sys/devices/platform/` and then `cd` into the directory corrisponding to the component you created. You should be able to read and write to the registers using `cat <register_name>` and `echo <value> > <register_name>`
-7. To control them via software, see this example file. Cross-compile it with `/usr/bin/arm-linux -gnueabihf -gcc -o <file_name> <file_name>.c`, and copy the executable to `/srv/nfs/de10nano/ubuntu-rootfs/home/soc/`.
+3. Create a Makefile in the same directory with the following contents, inserting the path to `linux-socfpga` and the component name where indicated:
+```Makefile
+ifneq ($(KERNELRELEASE),)
+# kbuild part of makefile
+obj-m  := <component_name>.o
+
+else
+# normal makefile
+
+# path to kernel directory
+KDIR ?= <absolute_path/to/linux-socfpga>
+
+default:
+	$(MAKE) -C $(KDIR) ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- M=$$PWD
+
+clean:
+	$(MAKE) -C $(KDIR) M=$$PWD clean
+endif
+```
+4. Run `make ARCH=arm` in the directory that `<component_name>.c` is in and fix any errors.
+5. Copy the `.ko` file that gets generated to `/srv/nfs/de10nano/ubuntu-rootfs/home/soc`.
+6. Boot the FPGA - you should be able to load and remove the module from the home directory using `insmod <component_name>.ko` and `rmmod <component.ko>`. Check if it was loaded successfully by running `dmesg | tail` and checking to see if the print statement from the probe function shows up.
+7. To check if the character device driver works, load the module, navigate to `/sys/devices/platform/` and then `cd` into the directory corrisponding to the component you created. You should be able to read and write to the registers using `cat <register_name>` and `echo <value> > <register_name>`
+8. To control them via software, see this example file. Cross-compile it with `/usr/bin/arm-linux -gnueabihf -gcc -o <file_name> <file_name>.c`, and copy the executable to `/srv/nfs/de10nano/ubuntu-rootfs/home/soc/`.
 ```c
 #include <stdio.h>
 #include <stdlib.h>
