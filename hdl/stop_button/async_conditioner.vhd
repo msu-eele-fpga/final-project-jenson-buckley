@@ -69,7 +69,7 @@ begin
   generic
   map (
   clk_period    => 20 ns,
-  debounce_time => 100 ns
+  debounce_time => 1 ms
   )
   port
   map (
