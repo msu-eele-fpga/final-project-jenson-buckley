@@ -19,7 +19,7 @@
 
 // min and max PWM values
 #define PWM_MIN 0x0
-#define PWM_MAX 0x8000
+#define PWM_MAX 0x80000000
 
 // loop variable that is set to zero by int_handler()
 static volatile int keep_running = 1;
@@ -37,16 +37,16 @@ int main () {
     // define and open sysfs files used to read from and write to registers
     FILE *file_pwm_rgb;
     FILE *file_adc;
-    file_pwm_rgb = fopen("/dev/file_pwm_rgb" , "rb+" );
+    file_pwm_rgb = fopen("/dev/pwm_rgb" , "rb+" );
     file_adc = fopen("/dev/adc" , "rb+" );
 
     // ensure all files opened correctly
     if (file_pwm_rgb == NULL) {
-        printf("failed to open /dev/file_pwm_rgb\n");
+        printf("failed to open /dev/pwm_rgb\n");
         exit(1);
     }
     if (file_adc == NULL) {
-        printf("failed to open /dev/file_adc\n");
+        printf("failed to open /dev/adc\n");
         exit(1);
     }
 
@@ -73,6 +73,16 @@ int main () {
     ret = fread(&val, 4, 1, file_adc);
     printf("adc_ch_2 = 0x%x\n", val);
 
+    // Reset file position to 0
+	ret = fseek(file_pwm_rgb, 0, SEEK_SET);
+	printf("(pwm_rgb) fseek ret = %d\n", ret);
+	printf("(pwm_rgb) errno =%s\n", strerror(errno));
+
+    // Reset file position to 0
+	ret = fseek(file_adc, 0, SEEK_SET);
+	printf("(adc) fseek ret = %d\n", ret);
+	printf("(adc) errno =%s\n", strerror(errno));
+
     printf("\n************************************\n*");
     printf("* begin looping!\n");
     printf("************************************\n\n");
@@ -80,11 +90,15 @@ int main () {
     // loop until ctl-c is entered
     signal(SIGINT, int_handler);
 
+    /*
     // set base period to 1 ms
     val = 0x1000;
     ret = fseek(file_pwm_rgb, BASE_PERIOD_OFFSET, SEEK_SET);
     ret = fwrite(&val, 4, 1, file_pwm_rgb);
+    printf("file not flushed");
     fflush(file_pwm_rgb);
+    printf("file flushed");
+    */
 
     uint32_t red_pwm;
     uint32_t green_pwm;
@@ -99,12 +113,15 @@ int main () {
         ret = fseek(file_adc, ADC_CH_0_OFFSET, SEEK_SET);
         ret = fread(&val, 4, 1, file_adc);
         red_pwm = (uint32_t) (PWM_MIN + (PWM_MAX - PWM_MIN)*((float) val) / 3299.0);
+        //printf("red_pwm = 0x%x\n", red_pwm);
         ret = fseek(file_adc, ADC_CH_1_OFFSET, SEEK_SET);
         ret = fread(&val, 4, 1, file_adc);
         green_pwm = (uint32_t) (PWM_MIN + (PWM_MAX - PWM_MIN)*((float) val) / 3299.0);
+        //printf("green_pwm = 0x%x\n", green_pwm);
         ret = fseek(file_adc, ADC_CH_2_OFFSET, SEEK_SET);
         ret = fread(&val, 4, 1, file_adc);
         blue_pwm = (uint32_t) (PWM_MIN + (PWM_MAX - PWM_MIN)*((float) val) / 3299.0);
+        //printf("blue_pwm = 0x%x\n", blue_pwm);
 
         // write pwm values
         ret = fseek(file_pwm_rgb, DUTY_RED_OFFSET, SEEK_SET);
@@ -116,6 +133,9 @@ int main () {
         ret = fseek(file_pwm_rgb, DUTY_BLUE_OFFSET, SEEK_SET);
         ret = fwrite(&blue_pwm, 4, 1, file_pwm_rgb);
         fflush(file_pwm_rgb);
+
+        usleep(100);
+
     }
 
     // ON EXIT
