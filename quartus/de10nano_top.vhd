@@ -364,7 +364,7 @@ begin
       rgb_pwm_blue_out => gpio_0(4),
 		
 		-- STOP button
-		stop_button_stop_button => gpio_1(0),
+		stop_button_stop_button => gpio_1(1),
 		
 		-- PWM output
 		ws2811_driver_strip_output => gpio_0(6)
