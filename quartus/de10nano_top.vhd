@@ -255,8 +255,9 @@ architecture de10nano_arch of de10nano_top is
       rgb_pwm_red_out                 : out   std_logic;
       rgb_pwm_green_out               : out   std_logic;
       rgb_pwm_blue_out                : out   std_logic;
-	   stop_button_stop_button         : in    std_logic:= 'X'              -- stop_button	
-    );
+	   stop_button_stop_button         : in    std_logic:= 'X';      -- stop_button	
+		ws2811_driver_strip_output      : out   std_logic             -- strip_output
+	 );
   end component soc_system;
 
   signal rst_n : std_ulogic;
@@ -363,7 +364,10 @@ begin
       rgb_pwm_blue_out => gpio_0(4),
 		
 		-- STOP button
-		stop_button_stop_button => gpio_1(0)
+		stop_button_stop_button => gpio_1(0),
+		
+		-- PWM output
+		ws2811_driver_strip_output => gpio_0(6)
 		
     );
 

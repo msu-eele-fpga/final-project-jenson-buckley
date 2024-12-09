@@ -366,6 +366,22 @@
          type = "String";
       }
    }
+   element ws2811_driver_0
+   {
+      datum _sortIndex
+      {
+         value = "7";
+         type = "int";
+      }
+   }
+   element ws2811_driver_0.avalon_slave_0
+   {
+      datum baseAddress
+      {
+         value = "196608";
+         type = "String";
+      }
+   }
 }
 ]]></parameter>
  <parameter name="clockCrossingAdapter" value="HANDSHAKE" />
@@ -405,6 +421,11 @@
  <interface
    name="stop_button"
    internal="stop_button_0.output"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="ws2811_driver"
+   internal="ws2811_driver_0.export"
    type="conduit"
    dir="end" />
  <module name="adc" kind="altera_up_avalon_adc" version="18.0" enabled="1">
@@ -1174,6 +1195,7 @@
    version="1.0"
    enabled="1" />
  <module name="stop_button_0" kind="stop_button" version="1.0" enabled="1" />
+ <module name="ws2811_driver_0" kind="ws2811_driver" version="1.0" enabled="1" />
  <connection
    kind="avalon"
    version="23.1"
@@ -1190,6 +1212,15 @@
    end="stop_button_0.avalon_slave_0">
   <parameter name="arbitrationPriority" value="1" />
   <parameter name="baseAddress" value="0x00020000" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="23.1"
+   start="hps.h2f_lw_axi_master"
+   end="ws2811_driver_0.avalon_slave_0">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x00030000" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -1217,6 +1248,15 @@
    end="stop_button_0.avalon_slave_0">
   <parameter name="arbitrationPriority" value="1" />
   <parameter name="baseAddress" value="0x00020000" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="23.1"
+   start="jtag_master.master"
+   end="ws2811_driver_0.avalon_slave_0">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x00030000" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -1243,6 +1283,11 @@
    version="23.1"
    start="fpga_clk.clk"
    end="stop_button_0.clk" />
+ <connection
+   kind="clock"
+   version="23.1"
+   start="fpga_clk.clk"
+   end="ws2811_driver_0.clk" />
  <connection
    kind="clock"
    version="23.1"
@@ -1275,6 +1320,11 @@
    version="23.1"
    start="fpga_clk.clk_reset"
    end="stop_button_0.rst" />
+ <connection
+   kind="reset"
+   version="23.1"
+   start="fpga_clk.clk_reset"
+   end="ws2811_driver_0.rst" />
  <interconnectRequirement for="$system" name="qsys_mm.clockCrossingAdapter" value="HANDSHAKE" />
  <interconnectRequirement for="$system" name="qsys_mm.maxAdditionalLatency" value="1" />
 </system>
