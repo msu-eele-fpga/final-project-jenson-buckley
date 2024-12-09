@@ -39,7 +39,7 @@ architecture arch of ws_2811_driver_avalon is
   -- Sets which led is the single led
   signal strip_index    : std_logic_vector(31 downto 0) := (30 => '1', others => '0');
   -- Convert strip_index to integer using only the least significant LED_COUNT bits
-  signal strip_index_int : integer range 0 to 31 := 0;
+  signal strip_index_int : integer range 0 to LED_COUNT-1 := 0;
 
   -- Define Components
   component ws2811_driver is
