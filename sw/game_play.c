@@ -25,8 +25,13 @@
 #define NUM_LEDS 250
 
 // min and max delay times between updates of the led strip in ms
-#define DELAY_MIN 1
-#define DELAY_MAX 1000
+#define DELAY_MIN 1.0
+#define DELAY_MAX 500.0
+
+uint32_t val;
+uint32_t ret;
+uint32_t delay;
+uint32_t strip = 0x1;
 
 // loop variable that is set to zero by int_handler()
 static volatile int keep_running = 1;
@@ -63,9 +68,6 @@ int main () {
         exit(1);
     }
 
-    size_t ret;
-    uint32_t val;
-
     // Test reading the registers sequentially
     printf("\n************************************\n*");
     printf("* read initial register values\n");
@@ -86,10 +88,22 @@ int main () {
     printf("\n************************************\n*");
     printf("* begin game!\n");
     printf("************************************\n\n");
+
+
+    // update on and off color values
+    val = 0x0000FF;
+    ret = fseek(file_ws2811, OFF_COLOR_OFFSET, SEEK_SET);
+    ret = fwrite(&val, 4, 1, file_ws2811);
+    fflush(file_ws2811);
+    val = 0x000200;
+    ret = fseek(file_ws2811, ON_COLOR_OFFSET, SEEK_SET);
+    ret = fwrite(&val, 4, 1, file_ws2811);
+    fflush(file_ws2811);
     
-    // initialize game
-    uint32_t strip = 0x1;
-    uint32_t delay = DELAY_MAX;
+    // close files
+    fclose(file_stop_button);
+    fclose(file_adc);
+    fclose(file_ws2811);
 
     // loop until ctl-c is entered
     signal(SIGINT, int_handler);
@@ -98,19 +112,30 @@ int main () {
         // read ADC values and convert to pwm values
         // NOTE: this is designed for 3.3V supply to the pots
         // the highest value read by the ADC would be
-        // max_pot_v / max_adc_v * adc_bits - 1  = 3.3/4.096 * 2^12 - 1 = 3299        ret = fseek(file_adc, ADC_CH_0_OFFSET, SEEK_SET);
+        // max_pot_v / max_adc_v * adc_bits - 1  = 3.3/4.096 * 2^12 - 1 = 3299
+        file_adc = fopen("/dev/adc" , "rb+" );
+        ret = fseek(file_adc, ADC_CH_0_OFFSET, SEEK_SET);
+        //printf("fseek ret %d\n", ret);
         ret = fread(&val, 4, 1, file_adc);
+        //printf("fread ret %d\n", ret);
         delay = (uint32_t) (DELAY_MIN + (DELAY_MAX - DELAY_MIN)*((float) val) / 3299.0);
-
+        printf("Delay: %d\n", delay);
+        fclose(file_adc);
+        
         // check to see if user pressed button and won
         // if they did, pause the game for 5 seconds, then reset the button
         // otherwise, just reset the button
+        file_stop_button = fopen("/dev/stop_button" , "rb+" );
         ret = fseek(file_stop_button, STOP_BUTTON_OFFSET, SEEK_SET);
+        //printf("fseek ret %d\n", ret);
         ret = fread(&val, 4, 1, file_stop_button);
+        //printf("fread ret %d\n", ret);
         if(val==1)
         {
+            printf("Button pressed!");
             if(strip == WIN_INDEX)
             {
+                printf("YOU WON!!\n");
                 usleep(5*1000*1000);
             }
             val = 0x0;
@@ -118,20 +143,26 @@ int main () {
             ret = fwrite(&val, 4, 1, file_stop_button);
             // We need to "flush" so the OS finishes writing to the file_stop_button before our code continues.
             fflush(file_stop_button);
+            printf("Game reset...\n");
         }
+        fclose(file_stop_button);
 
         // update and write strip values
-        strip = strip > NUM_LEDS ? 0 : strip + 2;
+        file_ws2811 = fopen("/dev/ws2811" , "rb+" );
+        strip = strip > NUM_LEDS ? 0 : strip + 1;
         ret = fseek(file_ws2811, STRIP_OFFSET, SEEK_SET);
         ret = fwrite(&strip, 4, 1, file_ws2811);
         fflush(file_ws2811);
+        fclose(file_ws2811);
 
         usleep(1000*delay);
     }
 
+
     // ON EXIT
     // set all leds to red
-    val = 0xFF0000;
+    file_ws2811 = fopen("/dev/ws2811" , "rb+" );
+    val = 0x00FF00;
     ret = fseek(file_ws2811, OFF_COLOR_OFFSET, SEEK_SET);
     ret = fwrite(&val, 4, 1, file_ws2811);
     fflush(file_ws2811);
@@ -139,9 +170,7 @@ int main () {
     ret = fwrite(&val, 4, 1, file_ws2811);
     fflush(file_ws2811);
 
-    // close files
-    fclose(file_stop_button);
-    fclose(file_adc);
+    // close file
     fclose(file_ws2811);
 
     return 0;
