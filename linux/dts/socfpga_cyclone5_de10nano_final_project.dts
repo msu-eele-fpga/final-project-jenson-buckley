@@ -12,8 +12,13 @@ compatible = "jensen,pwm_rgb";
 reg = <0xff210000 16>;
 };
 
-stop_button: stop_button@ff210000 {
+stop_button: stop_button@ff220000 {
 compatible = "jensen,stop_button";
 reg = <0xff220000 8>;
+};
+
+ws2811_driver: ws2811_driver@ff230000 {
+compatible = "buckley,ws2811_driver";
+reg = <0xff230000 12>;
 };
 };
