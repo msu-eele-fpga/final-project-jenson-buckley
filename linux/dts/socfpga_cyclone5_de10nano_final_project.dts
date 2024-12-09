@@ -17,8 +17,8 @@ compatible = "jensen,stop_button";
 reg = <0xff220000 8>;
 };
 
-ws2811_driver: ws2811_driver@ff230000 {
-compatible = "buckley,ws2811_driver";
+ws2811: ws2811@ff230000 {
+compatible = "buckley,ws2811";
 reg = <0xff230000 12>;
 };
 };
