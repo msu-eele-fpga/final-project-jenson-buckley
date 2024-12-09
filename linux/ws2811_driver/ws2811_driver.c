@@ -425,7 +425,7 @@ return 0;
 * compatible string as defined here.
 */
 static const struct of_device_id ws2811_of_match[] = {
-    { .compatible = "jensen,ws2811", },
+    { .compatible = "buckley,ws2811", },
     { }
 };
 MODULE_DEVICE_TABLE(of, ws2811_of_match);
