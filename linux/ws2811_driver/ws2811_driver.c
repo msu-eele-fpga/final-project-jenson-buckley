@@ -20,7 +20,6 @@
 * @rgb_all: Address of the red duty cycle register
 * @rgb_single: Address of the green duty cycle register
 * @strip_index: Address of the blue duty cycle register
-* @base_period: Address of the pwm base period register
 * @miscdev: miscdevice used to create a character device
 * @lock: mutex used to prevent concurrent writes to memory
 *
@@ -366,16 +365,13 @@ pr_err("Failed to request/remap platform device resource\n");
 return PTR_ERR(priv->base_addr);
 }
 // Set the memory addresses for each register.
-priv->rgb_all = priv->base_addr + DUTY_RED_OFFSET;
-priv->rgb_single = priv->base_addr + DUTY_GREEN_OFFSET;
-priv->strip_index = priv->base_addr + DUTY_BLUE_OFFSET;
-priv->base_period = priv->base_addr + BASE_PERIOD_OFFSET;
+priv->rgb_all = priv->base_addr + RGB_ALL;
+priv->rgb_single = priv->base_addr + RGB_SINGLE;
+priv->strip_index = priv->base_addr + STRIP_INDEX;
 // turn on red, just for fun.
 iowrite32(0xffff, priv->rgb_all);
 iowrite32(0x0, priv->rgb_single);
 iowrite32(0x0, priv->strip_index);
-// set period to 1 ms
-iowrite32(0x1000, priv->base_period);
 
 // Initialize the misc device parameters
 priv->miscdev.minor = MISC_DYNAMIC_MINOR;
@@ -429,7 +425,7 @@ return 0;
 * compatible string as defined here.
 */
 static const struct of_device_id ws2811_of_match[] = {
-    { .compatible = "jensen,ws2811", },
+    { .compatible = "buckley,ws2811", },
     { }
 };
 MODULE_DEVICE_TABLE(of, ws2811_of_match);
